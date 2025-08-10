@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  name          String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  profiles      Profile[]
+  submissions   Submission[]
+}
+
+model Profile {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  personaKey  String   // e.g., "Energetic_Responder"
+  traits      Json
+  createdAt   DateTime @default(now())
+}
+
+model Question {
+  id        String   @id @default(cuid())
+  text      String
+  optionA   String
+  optionB   String
+  weightA   Int      @default(1)
+  weightB   Int      @default(1)
+  active    Boolean  @default(true)
+  order     Int      @unique
+}
+
+model Submission {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
+  answers      Json       // [{questionId, choice: 'A'|'B'}]
+  personaKey   String
+  scoreVector  Json
+  createdAt    DateTime   @default(now())
+}
+
+model Institution {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  city        String
+  state       String
+  country     String
+  website     String?
+  logoUrl     String?
+  active      Boolean  @default(true)
+  courses     Course[]
+}
+
+model Course {
+  id             String       @id @default(cuid())
+  institutionId  String
+  institution    Institution  @relation(fields: [institutionId], references: [id])
+  name           String
+  category       String       // e.g., Engineering, Design
+  level          String       // e.g., UG, PG, Cert
+  description    String?
+  tags           String[]
+  personaFit     String[]     // persona keys suitable
+  dynamic        Boolean      @default(false)
+  lastUpdatedAt  DateTime     @default(now())
+  
+  @@unique([institutionId, name])
+}
