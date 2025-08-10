@@ -1,0 +1,44 @@
+name: Backend CI
+on:
+  push:
+    paths:
+      - "backend/**"
+  pull_request:
+    paths:
+      - "backend/**"
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: careerscan_ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd="pg_isready -U postgres" --health-interval=10s --health-timeout=5s --health-retries=5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/careerscan_ci
+      JWT_ACCESS_SECRET: test
+      JWT_REFRESH_SECRET: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - run: cd backend && npm ci
+      - run: cd backend && npx prisma migrate deploy
+      - run: cd backend && npm run build
+      - run: cd backend && npm test
+      - name: Build Docker
+        run: cd backend && docker build -t ghcr.io/${{ github.repository_owner }}/careerscan-backend:${{ github.sha }} -f docker/Dockerfile .
+      - name: Login GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push image
+        if: github.event_name == 'push'
+        run: docker push ghcr.io/${{ github.repository_owner }}/careerscan-backend:${{ github.sha }}

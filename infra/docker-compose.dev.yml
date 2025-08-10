@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: careerscan
+    ports: ["5432:5432"]
+    volumes: [dbdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: 
+      context: ../backend
+      dockerfile: docker/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/careerscan
+      ML_URL: http://ml:9000
+      JWT_ACCESS_SECRET: dev-access-secret-key
+      JWT_REFRESH_SECRET: dev-refresh-secret-key
+      PORT: 8080
+    ports: ["8081:8080"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ml:
+    build:
+      context: ../ml/service
+      dockerfile: Dockerfile
+    environment:
+      PORT: 9000
+    ports: ["9000:9000"]
+    restart: unless-stopped
+
+volumes:
+  dbdata:
